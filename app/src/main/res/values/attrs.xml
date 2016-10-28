@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="DxLoadingView">
+        <attr name="loadingColor" format="reference|color" />
+        <attr name="animationDuration" format="integer" />
+        <attr name="loadingViewSize" format="enum" >
+            <enum name="large" value="0" />
+            <enum name="small" value="1" />
+        </attr>
+    </declare-styleable>
+</resources>

@@ -3,11 +3,12 @@ package com.dx.dxloadingview;
 import android.animation.Animator;
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.Point;
+import android.os.Build;
+import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
@@ -15,43 +16,53 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 
 public class DxLoadingView extends View {
 
-    //private static final float sMagicNumber = 0.55228475f;
+    private static final int SIZE_LARGE = 88;
+    private static final int SIZE_SMALL = 64;
+
+    private static final int DEGREE_START = 270;         //animation start degree
+    private static final int DEGREE_END = 270 + 360;
+    private static final int DEGREE_DISCONNECT_DIFF = 30; //while little circle rotate degree less than this degree, show the connected path
+
+    private static final int COUNT_CIRCLE = 5;
+    private static final float MAX_SCALE_RATE = 0.8f;
 
     private int mWidth,mHeight;
-    private int mRadius;
+    private int mRadius;         //little circles rotate radius
+    private int mDotRadius;
     private int mPadding;
     private float mDensity;
-    private Paint mPaint,mPaint2,mPaint3;
+    private Paint mPaint;
     private float[] mDegrees;
+    private float mDegree = 270.0f;
     private Circle[] mCircles;
+    private ValueAnimator mAnimator;
 
+    private Path mPath;
+    private int mDuration; //duration of single cycle animation
+    private int mSize;
+    private int mIndex; //index of need show connected path
 
-    private Path mPath,mPath2;
-
-    private int mShortDuration,mMediumDuration,mLongDuration;
-    private int mIndex;
-    private float mDiffDegree;
 
     public DxLoadingView(Context context) {
         super(context);
-        init();
+        init(context,null);
     }
 
     public DxLoadingView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        init();
+        init(context,attrs);
     }
 
     public DxLoadingView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        init();
+        init(context,attrs);
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        int width = measureDimension((int)(200*mDensity),widthMeasureSpec);
-        int height = measureDimension((int)(80*mDensity),heightMeasureSpec);
+        int width = measureDimension((int)(mSize * mDensity),widthMeasureSpec);
+        int height = measureDimension((int)(mSize * mDensity),heightMeasureSpec);
         setMeasuredDimension(width,height);
     }
 
@@ -61,21 +72,17 @@ public class DxLoadingView extends View {
         mWidth = w;
         mHeight = h;
         mRadius = (Math.min(w,h) - mPadding)/2;
+        mDotRadius = mRadius/8;
 
-        //init circles radius and center point
         for(int i = 0; i< mCircles.length; i++){
             if(i == 4){
-                mCircles[i].radius = mRadius/8;
+                mCircles[i].radius = mDotRadius;
             }else{
-                mCircles[i].radius = mRadius/8 * (1-i*0.2f);
+                mCircles[i].radius = mDotRadius * (MAX_SCALE_RATE - i * 0.1f);
             }
-            mCircles[i].center.x = mWidth/2;
-            mCircles[i].center.y = (mHeight-mRadius*2)/2+mRadius/8;
+            mCircles[i].centerX = mWidth / 2;
+            mCircles[i].centerY = (mHeight - mRadius * 2) / 2 + mDotRadius;
         }
-
-        double tan = mRadius/8.0f/(mRadius-mRadius/8.0f);
-        double b = Math.atan(tan);
-        mDiffDegree = (float) Math.toDegrees(b);
     }
 
 
@@ -83,119 +90,93 @@ public class DxLoadingView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        canvas.drawLine(0,mHeight/2,mWidth,mHeight/2,mPaint2);
-        canvas.drawLine(mWidth/2,0,mWidth/2,mHeight,mPaint2);
-        canvas.drawCircle(mWidth/2,mHeight/2,mRadius,mPaint2);
-        canvas.drawCircle(mWidth/2,mHeight/2,mRadius-mRadius/8,mPaint2);
-
         for(int i = 0; i< mCircles.length; i++){
             Circle circle = mCircles[i];
-            float radian = (float) (mDegrees[i] / 180.0 * Math.PI);
-            mCircles[i].center.x = (int)(mWidth/2 + (float)Math.cos(radian) * (mRadius-mRadius/8));
-            mCircles[i].center.y = (int)(mHeight/2 + (float)Math.sin(radian) * (mRadius-mRadius/8));
-            canvas.drawCircle(circle.center.x,circle.center.y,circle.radius,mPaint2);
-        }
+            mDegrees[i] = mDegree - i * DEGREE_DISCONNECT_DIFF;
 
-        updatePathStart();
-        if(mPath != null) canvas.drawPath(mPath,mPaint2);
-        if(mPath2 != null) canvas.drawPath(mPath2,mPaint2);
-
-        if(mDegrees[0] < 270+360) {
-            mDegrees[0] += 1/3.0f;
-            if(mDegrees[0] > 301){
-               mIndex = 1;
-               mDegrees[mIndex] = mDegrees[0] - 30;
-            }
-            if(mDegrees[0] > 331){
-                mIndex = 2;
-                mDegrees[mIndex] = mDegrees[0] - 60;
-            }
-            if(mDegrees[0] > 361){
-                mIndex = 3;
-                mDegrees[mIndex] = mDegrees[0] - 90;
+            if(mDegrees[i] < DEGREE_START){
+                mDegrees[i] = DEGREE_START;
             }
 
-            if(mDegrees[0] > 390){
-                mIndex = 4;
-                mDegrees[mIndex] = mDegrees[0] - 120;
+            if(mDegrees[i] > DEGREE_END){
+                mDegrees[i] = DEGREE_END;
             }
-        }else{
-            for(int i=1;i<mDegrees.length;i++){
-                if(mDegrees[i] < 630){
-                    mDegrees[i] += 1/3.0f;
-                }
+
+            if(mDegree <= DEGREE_START + (mCircles.length - 1) * DEGREE_DISCONNECT_DIFF){
+                mIndex = (int)(mDegree - DEGREE_START) / DEGREE_DISCONNECT_DIFF;
             }
+
+            if(mDegree > DEGREE_END - DEGREE_DISCONNECT_DIFF  + i * DEGREE_DISCONNECT_DIFF){
+                mIndex = i;
+            }
+
+            float radian = mDegrees[i] / 180.0f * (float)Math.PI;
+            mCircles[i].centerX = mWidth / 2 + (float)Math.cos(radian) * (mRadius - mDotRadius);
+            mCircles[i].centerY = mHeight / 2 + (float)Math.sin(radian) * (mRadius - mDotRadius);
+            canvas.drawCircle(circle.centerX,circle.centerY,circle.radius,mPaint);
         }
 
-
-        if(mDegrees[1] > 600 && mDegrees[1] < 620){
-            mIndex = 1;
-            updatePathEnd();
+        if(mDegree > DEGREE_START && mDegree <= DEGREE_START + (mCircles.length - 1) * DEGREE_DISCONNECT_DIFF){
+            updatePathStart(canvas);
         }
 
-        if(mDegrees[2] > 600 && mDegrees[2] < 620){
-            mIndex = 2;
-            updatePathEnd();
+        if(mDegree >= DEGREE_END){
+            updatePathEnd(canvas);
         }
-
-        if(mDegrees[3] > 600 && mDegrees[3] < 620){
-            mIndex = 3;
-            updatePathEnd();
-        }
-
-        if(mDegrees[4] > 600 && mDegrees[4] < 620){
-            mIndex = 4;
-            updatePathEnd();
-        }
-
-        if(mDegrees[4] < 616+5){
-            invalidate();
-        }
-
-
     }
 
 
-    public void start(){
-        //playAnimation();
-        //playRotateAnimation();
+    //start loading Animation
+    public void startAnimation(){
+        if(mAnimator != null && mAnimator.isRunning()){
+            return;
+        }
+        playAnimation();
+    }
+
+    //cancel loading animation
+    public void cancelAnimation(){
+        if(mAnimator != null && mAnimator.isRunning()){
+            mAnimator.cancel();
+            reset();
+        }
     }
 
 
-    private void init(){
+    private void init(Context context,AttributeSet attrs){
 
-        mShortDuration = getResources().getInteger(android.R.integer.config_shortAnimTime);
-        mMediumDuration = getResources().getInteger(android.R.integer.config_mediumAnimTime);
-        mLongDuration = getResources().getInteger(android.R.integer.config_longAnimTime);
+        int color;
+        if(Build.VERSION.SDK_INT >= 23){
+            color  =  context.getResources().getColor(R.color.colorPrimary,context.getTheme());
+        } else{
+            color =  ContextCompat.getColor(context,R.color.colorPrimary);
+        }
+
+        if(attrs != null){
+            TypedArray ta = context.obtainStyledAttributes(attrs, R.styleable.DxLoadingView, 0, 0);
+            color = ta.getInt(R.styleable.DxLoadingView_loadingColor,color);
+            mDuration = ta.getInt(R.styleable.DxLoadingView_animationDuration,3000);
+            int size = ta.getInt(R.styleable.DxLoadingView_loadingViewSize,0);
+            mSize = size == 0 ? SIZE_LARGE : SIZE_SMALL;
+            ta.recycle();
+        }
 
         mDensity = getResources().getDisplayMetrics().density;
-        mPadding = (int)(4 * mDensity);
-        mDegrees = new float[]{270f,270f,270f,270f,270f};
+        mPadding = (int)(2 * mDensity);
         mIndex = 0;
 
-        mCircles = new Circle[5];
+        mDegrees = new float[COUNT_CIRCLE];
+        mCircles = new Circle[COUNT_CIRCLE];
         for(int i=0;i<5;i++){
             mCircles[i] = new Circle();
-            mCircles[i].center = new Point();
+            mDegrees[i] = DEGREE_START;
         }
 
         mPaint = new Paint();
         mPaint.setAntiAlias(true);
         mPaint.setStyle(Paint.Style.FILL);
-        mPaint.setColor(Color.BLUE);
+        mPaint.setColor(color);
 
-        mPaint2 = new Paint();
-        mPaint2.setAntiAlias(true);
-        mPaint2.setStyle(Paint.Style.STROKE);
-        mPaint2.setColor(Color.GRAY);
-        mPaint2.setStrokeWidth(3);
-
-        mPaint3 = new Paint();
-        mPaint3.setAntiAlias(true);
-        mPaint3.setStyle(Paint.Style.FILL);
-        mPaint3.setColor(Color.GREEN);
-
-        //mMatrix = new Matrix();
     }
 
     private int measureDimension(int defaultSize, int measureSpec) {
@@ -215,11 +196,85 @@ public class DxLoadingView extends View {
         return result;
     }
 
-    private void updatePathStart(){
+    //draw connection path between two circle at animation start
+    private void updatePathStart(Canvas canvas){
+
+        if(mIndex == 4){
+            return;
+        }
+
+        float mDegree = mDegrees[mIndex];
+        Circle circle = mCircles[mIndex];
+        //rotated degree
+        float currentRotatedDegree = mDegree - DEGREE_START;
+
+        float progress = currentRotatedDegree / DEGREE_DISCONNECT_DIFF;
+
+        float diffDegree = getDegree(mCircles[4].radius);
+        //scale the last circle radius
+        float currentRadius = mIndex == 0 ? mDotRadius : mDotRadius * (MAX_SCALE_RATE - mIndex * 0.1f);
+        float destRadius = mDotRadius * (MAX_SCALE_RATE - (mIndex+1) * 0.1f);
+        mCircles[4].radius = currentRadius - progress * (currentRadius - destRadius);
+
+        if(currentRotatedDegree < diffDegree || progress > 1){
+           return;
+        }
+
+        if(mPath == null){
+            mPath = new Path();
+        }else{
+            mPath.reset();
+        }
+
+        //draw two oblique lines and arcs
+        float d1 = 300 + currentRotatedDegree / 2;
+        float[] p1t = getPositionInArc(d1, mCircles[4].centerX, mCircles[4].centerY, mCircles[4].radius);
+        float[] p1b = getPositionInArc(d1 + (180 - progress * 60), mCircles[4].centerX, mCircles[4].centerY, mCircles[4].radius);
+
+        float d2 = 270 - currentRotatedDegree / 2;
+        float[] p2t = getPositionInArc(d2, circle.centerX, circle.centerY, circle.radius);
+        float[] p2b = getPositionInArc(d2 - (180.0f - progress * 60), circle.centerX, circle.centerY, circle.radius);
+
+        float centerDegree = DEGREE_START + currentRotatedDegree / 2;
+
+        float avgLength = (currentRadius+destRadius) / 2;
+        float rc = mRadius - mDotRadius - avgLength * (float)Math.sin(currentRotatedDegree / 180.0 * Math.PI);
+
+        float progress2 = (currentRotatedDegree - diffDegree) / (30.0f - diffDegree);
+        float distance1 = getDistance(p1t,p1b);
+        float distance2 = getDistance(p2t,p2b);
+        float r1 = rc - distance1/2 + progress2 * distance1;
+        float r2 = rc + distance2/2 - progress2 * distance2;
+
+        float[] csp = getPositionInArc(centerDegree,mWidth/2,mHeight/2,r1);
+        float[] clp = getPositionInArc(centerDegree,mWidth/2,mHeight/2,r2);
+
+        mPath.moveTo(p1t[0],p1t[1]);
+        mPath.lineTo(p1b[0],p1b[1]);
+        mPath.quadTo(csp[0],csp[1],p2b[0],p2b[1]);
+        mPath.lineTo(p2t[0],p2t[1]);
+        mPath.quadTo(clp[0],clp[1],p1t[0],p1t[1]);
+
+        canvas.drawPath(mPath,mPaint);
+    }
+
+    //draw connection path between two circle at animation end
+    private void updatePathEnd(Canvas canvas){
 
         float mDegree = mDegrees[mIndex];
 
-        if(mDegree - 270 < 10 || mIndex == 4){
+        if(mDegree < DEGREE_END - DEGREE_DISCONNECT_DIFF || mIndex == 0 ){
+           return;
+        }
+
+        float currentRotatedDegree = mDegree - DEGREE_END + DEGREE_DISCONNECT_DIFF;
+        float progress = currentRotatedDegree / DEGREE_DISCONNECT_DIFF;
+        float diffRadius = mDotRadius * MAX_SCALE_RATE / 4 / 4;
+        float cRadius = mDotRadius * MAX_SCALE_RATE + mIndex * diffRadius;
+        float diffDegree = getDegree(mCircles[0].radius);
+        mCircles[0].radius = cRadius - diffRadius + progress * diffRadius;
+
+        if(currentRotatedDegree > DEGREE_DISCONNECT_DIFF - diffDegree){
             return;
         }
 
@@ -231,152 +286,107 @@ public class DxLoadingView extends View {
 
         Circle circle = mCircles[mIndex];
 
-        float currentD = mDegree + (mDegree-270)/2;
-        currentD = currentD > 315 ? 315 : currentD;
-        float radian = (float) (currentD / 180.0 * Math.PI);
-        float x = mCircles[4].center.x + (float)Math.cos(radian) * mCircles[4].radius;
-        float y = mCircles[4].center.y + (float)Math.sin(radian) * mCircles[4].radius;
+        float d1 = DEGREE_END - MAX_SCALE_RATE / 2 + currentRotatedDegree / 2;
+        float[] p1t = getPositionInArc(d1,mCircles[0].centerX,mCircles[0].centerY,mCircles[0].radius);
+        float[] p1b = getPositionInArc(d1 - 120,mCircles[0].centerX,mCircles[0].centerY,mCircles[0].radius);
 
-        float radian2 = (float) ((currentD+120)/ 180.0 * Math.PI);
-        float x2 = mCircles[4].center.x + (float)Math.cos(radian2) * mCircles[4].radius;
-        float y2 = mCircles[4].center.y + (float)Math.sin(radian2) * mCircles[4].radius;
+        float d2 = DEGREE_START + MAX_SCALE_RATE / 2 + currentRotatedDegree / 2;
+        float[] p2t = getPositionInArc(d2,circle.centerX,circle.centerY,circle.radius);
+        float[] p2b = getPositionInArc(d2 + 120,circle.centerX,circle.centerY,circle.radius);
 
-        float currentD2 = 270-(mDegree-270)/2;
-        currentD2 = currentD2 > 285 ? 285 : currentD2;
-        float radian21 = (float) (currentD2 / 180.0 * Math.PI);
-        float x21 = circle.center.x + (float)Math.cos(radian21) * circle.radius;
-        float y21 = circle.center.y + (float)Math.sin(radian21) * circle.radius;
+        float centerDegree = DEGREE_END - DEGREE_DISCONNECT_DIFF / 2 + currentRotatedDegree / 2;
 
-        float radian22 = (float) ((currentD2-120)/ 180.0 * Math.PI);
-        float x22 = circle.center.x + (float)Math.cos(radian22) * circle.radius;
-        float y22 = circle.center.y + (float)Math.sin(radian22) * circle.radius;
+        float avgLength = (mCircles[0].radius + circle.radius)/2;
+        float mRadius1 = mRadius - mCircles[0].radius - avgLength * (float)Math.sin(currentRotatedDegree / 180.0 * Math.PI);
 
-        float centerD = 270+(mDegree-270)/2;
-        centerD = centerD > 285 ? 285 : centerD;
-        float radian3 = (float) (centerD / 180.0 * Math.PI);
-//        float midX = mCircle.center.x + (float)Math.cos(radian3) * (mCircle.radius - circle.radius);
-//        float midY = mCircle.center.y + (float)Math.sin(radian3) * (mCircle.radius - circle.radius);
+        float progress2 = currentRotatedDegree / (DEGREE_DISCONNECT_DIFF - diffDegree);
+        float diff = (getDistance(p1t,p1b) + getDistance(p2t,p2b))/2;
+        float r1 = mRadius1 + diff/2 - progress2 * diff;
+        float r2 = mRadius1 - diff/2 + progress2 * diff;
 
-        float midX2 = mWidth/2 + (float)Math.cos(radian3) * mRadius;
-        float midY2 = mHeight/2 + (float)Math.sin(radian3) * mRadius;
+        float[] clp = getPositionInArc(centerDegree,mWidth/2,mHeight/2,r1);
+        float[] csp = getPositionInArc(centerDegree,mWidth/2,mHeight/2,r2);
 
-        float midX3 = mWidth/2 + (float)Math.cos(radian3) * (mRadius-mRadius/8*2);
-        float midY3 = mHeight/2 + (float)Math.sin(radian3) * (mRadius-mRadius/8*2);
+        mPath.moveTo(p1t[0],p1t[1]);
+        mPath.lineTo(p1b[0],p1b[1]);
+        mPath.quadTo(clp[0],clp[1],p2b[0],p2b[1]);
+        mPath.lineTo(p2t[0],p2t[1]);
+        mPath.quadTo(csp[0],csp[1],p1t[0],p1t[1]);
 
-        float progress = (mDegree-270-10)/20.0f;
-        if(progress < 1){
-            float mDiff = circle.radius * 2 + (mIndex-1)*circle.radius/2;
-            mPath.moveTo(x,y);
-            mPath.lineTo(x2,y2);
-            mPath.quadTo(midX2,midY3-mDiff*progress,x22,y22);
-
-            mPath.lineTo(x21,y21);
-            mPath.quadTo(midX3,midY2+(mDiff/4*3)*progress,x,y);
-
-            mCircles[4].radius = mRadius/8*0.20f*(5-mIndex) - progress*mRadius/32;
-        }
+        canvas.drawPath(mPath,mPaint);
     }
 
-    private void updatePathEnd(){
-        float mDegree = mDegrees[mIndex];
-        if(mDegree < 600){
-           return;
-        }
-
-        if(mPath2 == null){
-            mPath2 = new Path();
-        }else{
-            mPath2.reset();
-        }
-
-        Circle circle = mCircles[mIndex];
-
-        float currentD = 585 + (mDegree-600)/2;
-        currentD = currentD > 600 ? 600 : currentD;
-        float radian = (float) (currentD / 180.0 * Math.PI);
-        float x = mCircles[0].center.x + (float)Math.cos(radian) * mCircles[0].radius;
-        float y = mCircles[0].center.y + (float)Math.sin(radian) * mCircles[0].radius;
-
-        float radian2 = (float) ((currentD-120)/ 180.0 * Math.PI);
-        float x2 = mCircles[0].center.x + (float)Math.cos(radian2) * mCircles[0].radius;
-        float y2 = mCircles[0].center.y + (float)Math.sin(radian2) * mCircles[0].radius;
-
-        float currentD2 = 285 + (mDegree-600)/2;
-        currentD2 = currentD2 > 300 ? 300 : currentD2;
-        float radian21 = (float) (currentD2 / 180.0 * Math.PI);
-        float x21 = circle.center.x + (float)Math.cos(radian21) * circle.radius;
-        float y21 = circle.center.y + (float)Math.sin(radian21) * circle.radius;
-
-        float radian22 = (float) ((currentD2+120)/ 180.0 * Math.PI);
-        float x22 = circle.center.x + (float)Math.cos(radian22) * circle.radius;
-        float y22 = circle.center.y + (float)Math.sin(radian22) * circle.radius;
-
-        float cDegree = mDiffDegree*(5-mIndex)*0.2f;
-        float moveDegree = 30 - mDiffDegree - cDegree;
-        float centerD = mDegree+cDegree + ((630-mDiffDegree) - (mDegree+cDegree))/2;
-        float radian3 = (float) (centerD / 180.0 * Math.PI);
-        float midX = mWidth/2 + (float)Math.cos(radian3) * (mRadius - mCircles[0].radius);
-        float midY = mHeight/2 + (float)Math.sin(radian3) * (mRadius - mCircles[0].radius);
-
-        float midX2 = mWidth/2 + (float)Math.cos(radian3) * mRadius;
-        float midY2 = mHeight/2 + (float)Math.sin(radian3) * mRadius;
-
-        float midX3 = mWidth/2 + (float)Math.cos(radian3) * (mRadius-circle.radius);
-        float midY3 = mHeight/2 + (float)Math.sin(radian3) * (mRadius-circle.radius);
-
-        float progress = (mDegree-600)/moveDegree;
-        float mDiff = circle.radius;
-        if(progress < 1){
-            mPath2.addCircle(midX,midY,5, Path.Direction.CCW);
-            mPath2.moveTo(x,y);
-            mPath2.lineTo(x2,y2);
-            //bottom
-            mPath2.quadTo(midX,midY,x22,y22);
-
-            mPath2.lineTo(x21,y21);
-            //top
-            mPath2.quadTo(midX,midY,x,y);
-
-        }
-    }
-
+    //start INFINITE repeat animation
     private void playAnimation(){
-        ValueAnimator animator = ValueAnimator.ofFloat(270,270+360);
-        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+        mAnimator = ValueAnimator.ofFloat(DEGREE_START,DEGREE_END + (COUNT_CIRCLE - 1) * DEGREE_DISCONNECT_DIFF);
+        mAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator valueAnimator) {
-                mDegrees[0] = (Float) valueAnimator.getAnimatedValue();
+                mDegree = (Float) valueAnimator.getAnimatedValue();
                 invalidate();
             }
         });
-        animator.setDuration(2000);
-        animator.setInterpolator(new AccelerateDecelerateInterpolator());
-        animator.addListener(new AnimatorEndListener() {
+        mAnimator.setDuration(mDuration);
+        mAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        mAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        mAnimator.setRepeatMode(ValueAnimator.RESTART);
+        mAnimator.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+
+            }
+
             @Override
             public void onAnimationEnd(Animator animation) {
-                //playReverseAnimation();
+
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+
+            }
+
+            @Override
+            public void onAnimationRepeat(Animator animation) {
+                reset();
             }
         });
-        animator.start();
+        mAnimator.start();
 
     }
 
-
-    public abstract class AnimatorEndListener implements Animator.AnimatorListener{
-
-        @Override
-        public void onAnimationStart(Animator animator){}
-
-        @Override
-        public void onAnimationCancel(Animator animator){}
-
-        @Override
-        public void onAnimationRepeat(Animator animator){}
+    private void reset(){
+        mIndex = 0;
+        mDegree = 270f;
+        mCircles[4].radius = mDotRadius;
+        mCircles[0].radius = mDotRadius * MAX_SCALE_RATE;
+        invalidate();
     }
 
+    //get the position at arc with degree
+    private float[] getPositionInArc(float degree, float centerX, float centerY,float radius){
+        float radian = (float) (degree / 180.0 * Math.PI);
+        float x = centerX + (float)Math.cos(radian) * radius;
+        float y = centerY + (float)Math.sin(radian) * radius;
+        return new float[]{x,y};
+    }
+
+    //convert the arc length to degree in circle
+    private float getDegree(float length){
+        double tan = length / (mRadius - mDotRadius);
+        return (float) Math.toDegrees(Math.atan(tan));
+    }
+
+    //get distance of two point
+    private float getDistance(float[] point1,float[] point2){
+        float xDiff = Math.abs(point1[0]-point2[0]);
+        float yDiff = Math.abs(point1[1]-point2[1]);
+        return (float) Math.sqrt(xDiff * xDiff + yDiff * yDiff);
+    }
 
     private class Circle{
-        public Point center;
+        public float centerX;
+        public float centerY;
         public float radius;
     }
 
