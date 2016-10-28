@@ -26,8 +26,8 @@ public class DxLoadingView extends View {
     private static final int COUNT_CIRCLE = 5;
     private static final float MAX_SCALE_RATE = 0.8f;
 
-    private int mWidth,mHeight;
-    private int mRadius;         //little circles rotate radius
+    private int mCenterX,mCenterY;
+    private int mRadius;                 //little circles rotate radius
     private int mDotRadius;
     private int mPadding;
     private float mDensity;
@@ -69,8 +69,8 @@ public class DxLoadingView extends View {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        mWidth = w;
-        mHeight = h;
+        mCenterX = w/2;
+        mCenterY = h/2;
         mRadius = (Math.min(w,h) - mPadding)/2;
         mDotRadius = mRadius/8;
 
@@ -80,8 +80,8 @@ public class DxLoadingView extends View {
             }else{
                 mCircles[i].radius = mDotRadius * (MAX_SCALE_RATE - i * 0.1f);
             }
-            mCircles[i].centerX = mWidth / 2;
-            mCircles[i].centerY = (mHeight - mRadius * 2) / 2 + mDotRadius;
+            mCircles[i].centerX = mCenterX;
+            mCircles[i].centerY = (h - mRadius * 2) / 2 + mDotRadius;
         }
     }
 
@@ -110,7 +110,7 @@ public class DxLoadingView extends View {
                 mIndex = i;
             }
 
-            float[] p = getPositionInArc(mDegrees[i],mWidth/2,mHeight/2,mRadius - mDotRadius);
+            float[] p = getPositionInArc(mDegrees[i],mCenterX,mCenterY,mRadius - mDotRadius);
             mCircles[i].centerX = p[0];
             mCircles[i].centerY = p[1];
             canvas.drawCircle(circle.centerX,circle.centerY,circle.radius,mPaint);
@@ -246,8 +246,8 @@ public class DxLoadingView extends View {
         float r1 = rc - distance1/2 + progress2 * distance1;
         float r2 = rc + distance2/2 - progress2 * distance2;
 
-        float[] csp = getPositionInArc(centerDegree,mWidth/2,mHeight/2,r1);
-        float[] clp = getPositionInArc(centerDegree,mWidth/2,mHeight/2,r2);
+        float[] csp = getPositionInArc(centerDegree,mCenterX,mCenterY,r1);
+        float[] clp = getPositionInArc(centerDegree,mCenterX,mCenterY,r2);
 
         mPath.moveTo(p1t[0],p1t[1]);
         mPath.lineTo(p1b[0],p1b[1]);
@@ -304,8 +304,8 @@ public class DxLoadingView extends View {
         float r1 = mRadius1 + diff/2 - progress2 * diff;
         float r2 = mRadius1 - diff/2 + progress2 * diff;
 
-        float[] clp = getPositionInArc(centerDegree,mWidth/2,mHeight/2,r1);
-        float[] csp = getPositionInArc(centerDegree,mWidth/2,mHeight/2,r2);
+        float[] clp = getPositionInArc(centerDegree,mCenterX,mCenterY,r1);
+        float[] csp = getPositionInArc(centerDegree,mCenterX,mCenterY,r2);
 
         mPath.moveTo(p1t[0],p1t[1]);
         mPath.lineTo(p1b[0],p1b[1]);
