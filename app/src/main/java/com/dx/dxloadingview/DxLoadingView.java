@@ -110,9 +110,9 @@ public class DxLoadingView extends View {
                 mIndex = i;
             }
 
-            float radian = mDegrees[i] / 180.0f * (float)Math.PI;
-            mCircles[i].centerX = mWidth / 2 + (float)Math.cos(radian) * (mRadius - mDotRadius);
-            mCircles[i].centerY = mHeight / 2 + (float)Math.sin(radian) * (mRadius - mDotRadius);
+            float[] p = getPositionInArc(mDegrees[i],mWidth/2,mHeight/2,mRadius - mDotRadius);
+            mCircles[i].centerX = p[0];
+            mCircles[i].centerY = p[1];
             canvas.drawCircle(circle.centerX,circle.centerY,circle.radius,mPaint);
         }
 
