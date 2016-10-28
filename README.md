@@ -20,16 +20,16 @@ layout:
         app:loadingViewSize="large"
         />
 ```
-animationDuration: single circulating animation duration.
+animationDuration: duration of animation play once
 
-start animation:
+#start animation:
 
 ```java
 DxLoadingView loadingView = (DxLoadingView) findViewById(R.id.loading_view);
 loadingView.startAnimation();
 ```
 
-cancel animation:
+#cancel animation:
 
 ```java
 loadingView.cancelAnimation();
