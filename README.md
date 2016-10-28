@@ -35,4 +35,6 @@ cancel animation:
 loadingView.cancelAnimation();
 ```
 
-idea from:https://www.uplabs.com/posts/liquid-motion-marketing
+
+
+>idea from:https://www.uplabs.com/posts/liquid-motion-marketing
